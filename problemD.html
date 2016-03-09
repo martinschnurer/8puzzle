@@ -39,7 +39,7 @@
 	</button>
 
 	<script>
-	var velke_cislo = 12*11*10*9*8*7*6*5*4*3*2 + 1;
+	var velke_cislo = 11*10*9*8*7*6*5*4*3*2 + 1;
 	var m = 8;
 	var iteracia = 0;
 	var dimension = 3;
@@ -95,7 +95,8 @@
 		this.sachovnica  = pole.slice(0);	// novy objekt
 		this.heuristika = new Number;		//novy objekt
 		this.predchodca = undefined;	
-		this.sucet = 65535;					// maximalny (nezmyselny) sucet 
+		this.sucet = 65535;
+		this.toDelete = 1;				// maximalny (nezmyselny) sucet 
 
 
 		// PRVY VYPOCET HEURISTIKY
@@ -103,12 +104,6 @@
 		{
 			var sucet = 0;
 			var cislo,x_prve,y_prve,x_cislo,y_cislo;
-
-			/*console.log('---------');
-			console.log('novy vypocet:');
-			console.log('---------');
-			console.log('sachovnica:');
-			console.log(this.sachovnica);*/
 
 			for(var a=0;a<dimension*dimension;a++)
 			{
@@ -130,16 +125,11 @@
 				// ZE KDE SA MOMENTALNE NACHADZA
 				x_prve = a % dimension;
 				y_prve = Math.floor(a/dimension);
+		
 
-
-				//console.log('na '+a+' mieste je '+cislo);
-				
-				//console.log('lokalny sucet = '+(Math.abs(x_prve - x_cislo) + Math.abs(y_prve - y_cislo)));			
-
-				sucet += Math.abs(x_prve - x_cislo) + Math.abs(y_prve - y_cislo); 
+				sucet += Math.pow(x_prve - x_cislo,2) + Math.pow(y_prve - y_cislo,2); 
 
 			}
-			//console.log('sucet je '+sucet);
 			this.sucet  = sucet;
 		}
 
@@ -156,28 +146,27 @@
 			this.sucet = sucet;
 		}
 
-
 		//samotne pocitanie heuristiky po vytvoreni objektu
 		this.firstHeuristic();
 	}
 
 
 	//popisuje rozne stavy
+	//GLOBALNE PREMENNE
 	var pocet_prvkov = 0;
 	var velkost_tabulky = velke_cislo; 
 	var hash_table = new Array(velkost_tabulky);
-	
+	var best_prvok = null;
+
 	function insertToTable(sachovnica)
 	{
-		
-		//console.log("pocet prvkov v tabulke = "+pocet_prvkov); 
-
+		//console.log('inserting to table');
 		pozicia = hash_compute(sachovnica) % velkost_tabulky;
 		var i = 0;
 		var o = 1;
 
 		// pokracuj ak neni undefined a zaroven to neni ten hladany
-		while( hash_table[pozicia] !== undefined && (i = porovnajPolia(hash_table[pozicia%velkost_tabulky],sachovnica)) == 0 ) 
+		while( hash_table[pozicia] !== undefined && (i = porovnajPolia(hash_table[pozicia % velkost_tabulky],sachovnica)) == 0 ) 
 			{
 				pozicia=(++pozicia + (o++))%velkost_tabulky;
 				//console.log('cyklim sa');
@@ -188,7 +177,64 @@
 		else
 			hash_table[pozicia] = sachovnica;
 
+
 		pocet_prvkov++;
+		
+		// AK PREKROCIME HRANICU PRVKOV
+		if(pocet_prvkov > 90000)
+		{
+			console.log('VYMAZAVANIE TABULKY');
+			tmp = best_prvok;
+			console.log(best_prvok);
+			while(tmp != undefined)
+			{
+				tmp.toDelete = 0;
+				tmp = tmp.predchodca;
+			}
+
+
+			//REHESHOVANIE TYCH PRVKOV KTORE TAM OSTALI
+			var zasobnik = [];
+			var tmp_pocet = 0;
+
+			// VYMAZANIE PRVKOV AK PREKROCI ISTU HRANICU, NECHA LEN TU CESTU , KTORA VEDIE K NAJLEPSIEMU PRVKU
+			for(var a=0;a<velkost_tabulky;a++)
+			{
+				if(hash_table[a] != undefined && hash_table[a].toDelete == 1)
+				{
+					hash_table[a] = undefined;
+					pocet_prvkov--;
+				}
+				else if(hash_table[a] != undefined && hash_table[a].toDelete == 0)
+				{
+					zasobnik.push(hash_table[a]);
+				}
+			}
+			console.log('pocet prvkov = '+pocet_prvkov);
+
+			//ZNOVU UMIESTNIT POTREBNE PRVKY DO TABULKY
+			while(zasobnik.length)
+			{
+				var o = 1;
+				var i;
+		
+				var prvok = zasobnik.shift();
+				pozicia = hash_compute(prvok);
+				while( hash_table[pozicia] !== undefined && (i = porovnajPolia(hash_table[pozicia % velkost_tabulky],prvok)) == 0 ) 
+				{	
+					console.log('juhuu');
+					pozicia = (++pozicia + (o++))%velkost_tabulky;
+				}
+				
+				hash_table[pozicia] = prvok;
+			}
+			
+			// SIGNAL ze sa premazavala tabulka !!!
+			return 2;
+		}
+
+		
+		// SIGNAL ZE SA PRIDAL USPESNE PRVOK DO TABULKY BEZ PREMAZAVANIA
 		return 1; // ak sa to tam uspesne vlozilo a este tam dany prvok nebol tak vrat 1
 	}
 	
@@ -278,18 +324,21 @@
 
 		while(neprehladane.length)
 		{
-
+			// INKREMENTOVAT, KOLKO KRAT SA CYKLUS OPAKOVAL, AK PRILIS DLHO TAK SKONCI
 			iteracia++;
-			if(iteracia > 300000)return;
-			
-			//console.log(neprehladane);
+			if(iteracia > 10000000)return;
+
 			choices = [];
+			
+			// VYBER ZO ZASOBNIKA
 			tmp = neprehladane.shift();
+
+			// NAJST NAJLEPSI MOZNY PRVOK Z CYKLU , PO PREMAZANI TABULKY SA BUDE HLADAT OD TOHTO PRVKU
+			if(best_prvok == undefined || best_prvok.sucet >= tmp.sucet)
+				best_prvok = tmp;
+
 			validmoznosti = getValid(tmp); // vrati POLE
 
-			//console.log('NOVE KOLO VO WHILE');
-			//console.log('VYBERAM SI '+tmp.sachovnica);
-			//console.log(tmp.sucet);
 
 			if(porovnajPolia(destination,tmp) == 1)
 			{
@@ -308,9 +357,12 @@
 			}
 
 
+
 			for(var b = 0; b < choices.length ;b++)
 			{
-				if(insertToTable(choices[b]) == 1) // AK ESTE NIE JE V HASH TABLE
+				
+				var i;
+				if( (i=insertToTable(choices[b])) == 1) // AK ESTE NIE JE V HASH TABLE
 					{
 						if(neprehladane.length && choices[b].sucet < neprehladane[0].sucet ) // AK JE LEPSIA HEURISTIKA, PRIDAJ NA ZACIATOK
 							neprehladane.unshift(choices[b]);
@@ -319,20 +371,30 @@
 						
 						choices[b].predchodca = tmp;
 					}
+				else if(i==2)
+				{
+					console.log('i == 2');
+					neprehladane = [];
+					console.log(best_prvok);
+					neprehladane.push(best_prvok);
+					best_prvok.sucet++;
+					break;
+				}
+
 			}
 			
 		}
 
-		pocet_prvkov = 0;
-		hash_table = new Array(velkost_tabulky);
 		return 0; // ak sa nenasla moznost
 	}
 
 	function vypisPredchodcov(sachovnica)
 	{
 		var tmp = sachovnica;
+		console.log('vypisovat idem');
+		console.log(sachovnica);
 
-		while(tmp.predchodca != undefined)
+		while(tmp != undefined)
 		{
 			console.log(tmp.sachovnica);
 			tmp = tmp.predchodca;
