@@ -1,0 +1,375 @@
+<html>
+<head>
+	<title>Problem D</title>
+
+	<style>
+		.cube{
+			height:50px;
+			width:50px;
+			background-color: #cec;
+			cursor:pointer;
+		}
+
+		.inputik{
+			height:50px;
+			width:50px;
+			background-color:#cec;
+			box-shadow: none;
+			border:none;
+			text-align: center;
+		}
+
+
+	</style>
+
+
+
+</head>
+
+
+<body>
+	<p>Zvolte dimension: <input id="dimension" type="number" style='width:50px;' onchange="recreate(this);"> </p>
+
+	<div>
+		<table id="matrix"></table>
+	</div>
+
+	<button onclick="startSimulation();">
+		POTVRD
+	</button>
+
+	<script>
+	var velke_cislo = 12*11*10*9*8*7*6*5*4*3*2 + 1;
+	var m = 8;
+	var iteracia = 0;
+	var dimension = 3;
+	var start = []; // TOTO JE ZACIATOCNA POZICIA Z KTOREJ SA ODSTARTUJE, TOTO SA MENI, KED SA HTML MATRIX MENI
+
+
+	function recreate(element)
+	{
+		var value = element.value;
+		var matrix = document.getElementById('matrix');
+		
+		start = [];
+		dimension = parseInt(element.value);
+		matrix.innerHTML = "";
+
+		var row = "";
+
+		for(var a=0;a<dimension*dimension;a++)
+			start[a] = a+1;
+
+		for(var a=0;a<value;a++)
+		{
+			row += "<tr>";
+			for(var b=0;b<value;b++)
+			{
+				row += "<td><input class='inputik' val='"+(a*dimension+b+1)+"' type='number' value='"+(a*dimension+b+1)+"' onchange='changeValue(this);' row='"+a+"' column='"+b+"'></td>";
+			}
+		}
+		matrix.innerHTML = row;
+		console.log(start);
+	}
+
+	function changeValue(element)
+	{
+		if(element.value == "")
+			element.setAttribute("val","m");
+		else
+			element.setAttribute("val",element.value);
+
+		var v 	   = element.getAttribute("val");
+		var column = parseInt(element.getAttribute('column'));
+		var row    = parseInt(element.getAttribute('row'));	
+			
+		start[row*dimension + column] = (v==="m") ? v : parseInt(v);
+		console.log(start);
+
+		return;
+	}
+
+	var sachovnica = function(pole,pos)
+	{
+		this.pos = new Number(pos);			// novy objekt
+		this.sachovnica  = pole.slice(0);	// novy objekt
+		this.heuristika = new Number;		//novy objekt
+		this.predchodca = undefined;	
+		this.sucet = 65535;					// maximalny (nezmyselny) sucet 
+
+
+		// PRVY VYPOCET HEURISTIKY
+		this.firstHeuristic = function()
+		{
+			var sucet = 0;
+			var cislo,x_prve,y_prve,x_cislo,y_cislo;
+
+			/*console.log('---------');
+			console.log('novy vypocet:');
+			console.log('---------');
+			console.log('sachovnica:');
+			console.log(this.sachovnica);*/
+
+			for(var a=0;a<dimension*dimension;a++)
+			{
+				cislo = this.sachovnica[a];
+				
+				// A TOTO ROZHODNE KDE SA MA NACHADZAT TO DANE CISLO
+				if(cislo === "m")
+				{
+					x_cislo = dimension-1;
+					y_cislo = dimension-1;
+				}
+				else
+				{
+					x_cislo = (cislo-1) % dimension;
+					y_cislo = Math.floor((cislo-1)/dimension);	
+				}
+
+
+				// ZE KDE SA MOMENTALNE NACHADZA
+				x_prve = a % dimension;
+				y_prve = Math.floor(a/dimension);
+
+
+				//console.log('na '+a+' mieste je '+cislo);
+				
+				//console.log('lokalny sucet = '+(Math.abs(x_prve - x_cislo) + Math.abs(y_prve - y_cislo)));			
+
+				sucet += Math.abs(x_prve - x_cislo) + Math.abs(y_prve - y_cislo); 
+
+			}
+			//console.log('sucet je '+sucet);
+			this.sucet  = sucet;
+		}
+
+		// DRUHY VYPOCET HEURISTIKY
+		this.secondHeuristic = function()
+		{
+			var sucet = 0;
+
+			for(a=0;a<dimension*dimension;a++)
+			{
+				if(this.sachovnica[a]!=(a+1))
+					sucet++;
+			}
+			this.sucet = sucet;
+		}
+
+
+		//samotne pocitanie heuristiky po vytvoreni objektu
+		this.firstHeuristic();
+	}
+
+
+	//popisuje rozne stavy
+	var pocet_prvkov = 0;
+	var velkost_tabulky = velke_cislo; 
+	var hash_table = new Array(velkost_tabulky);
+	
+	function insertToTable(sachovnica)
+	{
+		
+		//console.log("pocet prvkov v tabulke = "+pocet_prvkov); 
+
+		pozicia = hash_compute(sachovnica) % velkost_tabulky;
+		var i = 0;
+		var o = 1;
+
+		// pokracuj ak neni undefined a zaroven to neni ten hladany
+		while( hash_table[pozicia] !== undefined && (i = porovnajPolia(hash_table[pozicia%velkost_tabulky],sachovnica)) == 0 ) 
+			{
+				pozicia=(++pozicia + (o++))%velkost_tabulky;
+				//console.log('cyklim sa');
+			}
+
+		if(i)	// AK TAM UZ JE TAK VRAT NULU
+			return 0;	
+		else
+			hash_table[pozicia] = sachovnica;
+
+		pocet_prvkov++;
+		return 1; // ak sa to tam uspesne vlozilo a este tam dany prvok nebol tak vrat 1
+	}
+	
+	function hash_compute(sachovnica)
+	{
+		
+		var n = sachovnica.sachovnica.length;
+		var sucet = 0;
+		for(var a = 0;a<n;a++)
+		{
+			if(sachovnica.sachovnica[a] == "m")
+				sucet += 100*(a+1)*(a+1)*(a+1);
+			else
+				sucet += (a+1)*(a+1)*(a+1)*(a+1)*(sachovnica.sachovnica[a]+1)*(1+sachovnica.sachovnica[a])*(sachovnica.sachovnica[a]);
+		}
+		return sucet;
+	}
+
+	function porovnajPolia(Array1,Array2)
+	{
+		var n = Array1.sachovnica.length;
+		var ok = 1;
+		for(a=0;a<n;a++)
+		{
+			if(Array1.sachovnica[a] !== Array2.sachovnica[a])
+				return 0;
+		}
+		return 1;
+	}
+
+	function getValid(sach)
+	{	
+		var x = sach.pos % dimension; // 1 % 3 = 1;
+		var y = Math.floor(sach.pos / dimension); // 1/3 = 0
+		var pole = [];
+
+		if(y != 0) 					pole.push("up");
+		if(y != dimension-1)		pole.push("down");
+		if(x != 0)					pole.push("left");
+		if(x != dimension-1) 		pole.push("right");
+
+		return pole;
+	}
+
+	function DOWN(sach)
+	{
+		var tmp = sach.sachovnica[sach.pos+dimension];
+		var nova = new sachovnica(sach.sachovnica,sach.pos);
+		nova.sachovnica[nova.pos+dimension] = "m"; 
+		nova.sachovnica[nova.pos] = tmp;
+		nova.pos += dimension;
+		return nova;
+	}
+	function UP(sach){
+		var tmp = sach.sachovnica[sach.pos-dimension];
+		var nova = new sachovnica(sach.sachovnica,sach.pos);
+		nova.sachovnica[nova.pos-dimension] = "m";
+		nova.sachovnica[nova.pos] = tmp;
+		nova.pos-=dimension;
+		return nova;
+	}
+	function LEFT(sach){
+		var tmp = sach.sachovnica[sach.pos-1];
+		var nova = new sachovnica(sach.sachovnica,sach.pos);
+		nova.sachovnica[nova.pos-1] = "m";
+		nova.sachovnica[nova.pos] = tmp;
+		nova.pos--;
+		return nova;
+	}
+	function RIGHT(sach){
+		var tmp = sach.sachovnica[sach.pos+1]; 
+		var nova = new sachovnica(sach.sachovnica,sach.pos);
+		nova.sachovnica[nova.pos+1] = "m";
+		nova.sachovnica[nova.pos] = tmp;
+		nova.pos++;
+		return nova;
+	}
+	
+	function findSolution(start,destination)
+	{
+		var neprehladane = [];
+		neprehladane.push(start);
+		
+		var tmp;
+		var choices;
+		var validmoznosti;
+
+		while(neprehladane.length)
+		{
+
+			iteracia++;
+			if(iteracia > 300000)return;
+			
+			//console.log(neprehladane);
+			choices = [];
+			tmp = neprehladane.shift();
+			validmoznosti = getValid(tmp); // vrati POLE
+
+			//console.log('NOVE KOLO VO WHILE');
+			//console.log('VYBERAM SI '+tmp.sachovnica);
+			//console.log(tmp.sucet);
+
+			if(porovnajPolia(destination,tmp) == 1)
+			{
+				console.log('JUPII');
+				console.log('pocet iteracii = '+iteracia);
+				console.log(tmp);
+				return tmp;
+			}
+
+			for(var a = 0;a < validmoznosti.length ; a++)
+			{
+				if     ( validmoznosti[a] == "up"   )	choices.push(UP(tmp));	
+				else if( validmoznosti[a] == "down" )	choices.push(DOWN(tmp));
+				else if( validmoznosti[a] == "right")	choices.push(RIGHT(tmp));
+				else if( validmoznosti[a] == "left" )	choices.push(LEFT(tmp));
+			}
+
+
+			for(var b = 0; b < choices.length ;b++)
+			{
+				if(insertToTable(choices[b]) == 1) // AK ESTE NIE JE V HASH TABLE
+					{
+						if(neprehladane.length && choices[b].sucet < neprehladane[0].sucet ) // AK JE LEPSIA HEURISTIKA, PRIDAJ NA ZACIATOK
+							neprehladane.unshift(choices[b]);
+						else
+							neprehladane.push(choices[b]);   // AK NENI LEPSIA AKO PRVY ELEMENT,PRIDAJ NA KONIEC
+						
+						choices[b].predchodca = tmp;
+					}
+			}
+			
+		}
+
+		pocet_prvkov = 0;
+		hash_table = new Array(velkost_tabulky);
+		return 0; // ak sa nenasla moznost
+	}
+
+	function vypisPredchodcov(sachovnica)
+	{
+		var tmp = sachovnica;
+
+		while(tmp.predchodca != undefined)
+		{
+			console.log(tmp.sachovnica);
+			tmp = tmp.predchodca;
+		}
+
+	}
+
+	function startSimulation()
+	{
+		var tmp_array = [];
+		for(var a=0;a<dimension*dimension - 1;a++)
+		{
+			tmp_array.push(a+1);
+		}
+		tmp_array.push("m");
+
+		var destination = new sachovnica(tmp_array,dimension*dimension-1);
+		var starting = null;
+		for(var a=0;a<dimension*dimension;a++)
+		{
+			if(start[a] === "m")
+			{	
+				starting = new sachovnica(start,a);
+				console.log('naslo sa m na pozicii '+a);
+				break;
+			}
+		}
+
+		insertToTable(starting);	
+		var vysledna = findSolution(starting,destination);
+		vypisPredchodcov(vysledna);
+		window.alert('dokoncil som ulohu');
+	}
+	
+	</script>
+
+</body>
+
+
+</html>
