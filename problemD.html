@@ -46,6 +46,8 @@
 	var start = []; // TOTO JE ZACIATOCNA POZICIA Z KTOREJ SA ODSTARTUJE, TOTO SA MENI, KED SA HTML MATRIX MENI
 
 
+
+	// AK SA V HTML ZMENI DIMENZIA, VYKRESLI SA ZNOVU HTML
 	function recreate(element)
 	{
 		var value = element.value;
@@ -72,6 +74,8 @@
 		console.log(start);
 	}
 
+
+	// AK SA ZMENI HODNOTA V MATRIXE, TAK TATO FUNKCIA SA SPUSTI
 	function changeValue(element)
 	{
 		if(element.value == "")
@@ -89,6 +93,7 @@
 		return;
 	}
 
+	// OBJEKT SACHOVNICA, OBSAHUJE POLE A POZICIU MEDZERI
 	var sachovnica = function(pole,pos)
 	{
 		this.pos = new Number(pos);			// novy objekt
@@ -169,60 +174,59 @@
 		while( hash_table[pozicia] !== undefined && (i = porovnajPolia(hash_table[pozicia % velkost_tabulky],sachovnica)) == 0 ) 
 			{
 				pozicia=(++pozicia + (o++))%velkost_tabulky;
-				//console.log('cyklim sa');
 			}
 
-		if(i)	// AK TAM UZ JE TAK VRAT NULU
+		// AK TAM UZ JE TAK VRAT NULU (nepridali sme ziadny prvok)
+		if(i)	
 			return 0;	
 		else
-			hash_table[pozicia] = sachovnica;
+			hash_table[pozicia] = sachovnica; // ak tam nie je, pridaj do hash tabulky
 
-
+		//inkrementuj pocet prvkov v tabulke
 		pocet_prvkov++;
 		
+
 		// AK PREKROCIME HRANICU PRVKOV
-		if(pocet_prvkov > 90000)
+		if(pocet_prvkov > 100000)
 		{
-			console.log('VYMAZAVANIE TABULKY');
 			tmp = best_prvok;
 			console.log(best_prvok);
+			var zasobnik = [];
+			var tmp_pocet = 0;
+
+			// NASTAV KAZDEMU PRVKU V DOBREJ CESTE ABY SA NEVYMAZAL, ALE ABY SA PAMATAL V HASH TABLE
 			while(tmp != undefined)
 			{
 				tmp.toDelete = 0;
 				tmp = tmp.predchodca;
 			}
-
-
-			//REHESHOVANIE TYCH PRVKOV KTORE TAM OSTALI
-			var zasobnik = [];
-			var tmp_pocet = 0;
-
+			
 			// VYMAZANIE PRVKOV AK PREKROCI ISTU HRANICU, NECHA LEN TU CESTU , KTORA VEDIE K NAJLEPSIEMU PRVKU
 			for(var a=0;a<velkost_tabulky;a++)
 			{
+				// ak je node oznaceny, ze ma byt vymazany, vymaze sa
 				if(hash_table[a] != undefined && hash_table[a].toDelete == 1)
 				{
 					hash_table[a] = undefined;
 					pocet_prvkov--;
 				}
+				//AK SA MA ZAPAMATAT, TAK SA ULOZI DO ZASOBNIKA PRE REHESHOVANIE
 				else if(hash_table[a] != undefined && hash_table[a].toDelete == 0)
 				{
 					zasobnik.push(hash_table[a]);
 				}
 			}
-			console.log('pocet prvkov = '+pocet_prvkov);
 
-			//ZNOVU UMIESTNIT POTREBNE PRVKY DO TABULKY
+			//ZNOVU UMIESTNIT PRVKY V ZASOBNIKU DO TABULKY
 			while(zasobnik.length)
 			{
-				var o = 1;
-				var i;
-		
+				var i,o = 1;
 				var prvok = zasobnik.shift();
 				pozicia = hash_compute(prvok);
+
+				// UMIESTNIT PRVKY ZO ZASOBNIKA DO NOVOVYTVORENEJ TABULKY
 				while( hash_table[pozicia] !== undefined && (i = porovnajPolia(hash_table[pozicia % velkost_tabulky],prvok)) == 0 ) 
 				{	
-					console.log('juhuu');
 					pozicia = (++pozicia + (o++))%velkost_tabulky;
 				}
 				
@@ -240,7 +244,7 @@
 	
 	function hash_compute(sachovnica)
 	{
-		
+		/**vypočíta sa HASH**/
 		var n = sachovnica.sachovnica.length;
 		var sucet = 0;
 		for(var a = 0;a<n;a++)
@@ -255,6 +259,7 @@
 
 	function porovnajPolia(Array1,Array2)
 	{
+		/**porovna dve polia, vrati 1 pokial sa rovnaju, 0 pokial sa nerovnaju**/
 		var n = Array1.sachovnica.length;
 		var ok = 1;
 		for(a=0;a<n;a++)
@@ -267,8 +272,9 @@
 
 	function getValid(sach)
 	{	
-		var x = sach.pos % dimension; // 1 % 3 = 1;
-		var y = Math.floor(sach.pos / dimension); // 1/3 = 0
+		/**VRATI POLE STRINGOV PRE VALID TAHY**/
+		var x = sach.pos % dimension; 
+		var y = Math.floor(sach.pos / dimension); 
 		var pole = [];
 
 		if(y != 0) 					pole.push("up");
@@ -326,7 +332,7 @@
 		{
 			// INKREMENTOVAT, KOLKO KRAT SA CYKLUS OPAKOVAL, AK PRILIS DLHO TAK SKONCI
 			iteracia++;
-			if(iteracia > 10000000)return;
+			if(iteracia > 10000000)return 0;
 
 			choices = [];
 			
@@ -337,9 +343,10 @@
 			if(best_prvok == undefined || best_prvok.sucet >= tmp.sucet)
 				best_prvok = tmp;
 
-			validmoznosti = getValid(tmp); // vrati POLE
+			// vrati POLE STRINGOV napr. ["down","up"]
+			validmoznosti = getValid(tmp); 
 
-
+			// AK SME VYBRALI Z NEPREHLADANYCH STAVOV NAS VYSLEDNY TAH KTORY CHCEME NAJST, TAK SUPER, NASLI SME RIESENIE
 			if(porovnajPolia(destination,tmp) == 1)
 			{
 				console.log('JUPII');
@@ -348,6 +355,7 @@
 				return tmp;
 			}
 
+			// VYTVORI SA POLE "Choices" DO KTOREHO SA ULOZIA NOVE SACHOVNICE KTORE SA VYGENEROVALI PO VALID TAHOCH
 			for(var a = 0;a < validmoznosti.length ; a++)
 			{
 				if     ( validmoznosti[a] == "up"   )	choices.push(UP(tmp));	
@@ -357,28 +365,27 @@
 			}
 
 
-
+			// PRE KAZDU NOVU VYGENEROVANU SACHOVNICU SA ZISTI, CI UZ SME JU NAHODOU NEOBJAVILI, AK SME JU OBJAVILI TAK ULOZIT DO NEPREHLADANYCH STAVOV
 			for(var b = 0; b < choices.length ;b++)
 			{
 				
 				var i;
 				if( (i=insertToTable(choices[b])) == 1) // AK ESTE NIE JE V HASH TABLE
 					{
-						if(neprehladane.length && choices[b].sucet < neprehladane[0].sucet ) // AK JE LEPSIA HEURISTIKA, PRIDAJ NA ZACIATOK
+						if(neprehladane.length && choices[b].sucet < neprehladane[0].sucet ) // AK JE LEPSIA HEURISTIKA, PRIDAJ NA ZACIATOK FRONTU
 							neprehladane.unshift(choices[b]);
 						else
 							neprehladane.push(choices[b]);   // AK NENI LEPSIA AKO PRVY ELEMENT,PRIDAJ NA KONIEC
 						
-						choices[b].predchodca = tmp;
+						choices[b].predchodca = tmp; // vytvori sa odkaz na rodica
 					}
-				else if(i==2)
+				else if(i==2) // AK BOLA TABULKA PREMAZAVANA, TAK VYPRAZDNI FRONT, A UMIESTNI NA ZACIATOK NAJLEPSIEHO JEDINCA, KTORY MA NAJNIZSIU HEURISTIKU - BLIZSIE K CIELI
 				{
-					console.log('i == 2');
 					neprehladane = [];
 					console.log(best_prvok);
 					neprehladane.push(best_prvok);
-					best_prvok.sucet++;
-					break;
+					best_prvok.sucet++; // pridaj prvku heuristicky sucet + 1 , ak sa bude tento silny prvok opakovat, tak po istom case uz nebude najlepsi a zacne sa prehladavat ina cesta
+					break;//znamena nepridavat dalsie CHOICES
 				}
 
 			}
@@ -388,6 +395,8 @@
 		return 0; // ak sa nenasla moznost
 	}
 
+
+	// JEDNODUCHE NAVRATENIE KU RODICOM A VYPISAT ICH
 	function vypisPredchodcov(sachovnica)
 	{
 		var tmp = sachovnica;
@@ -402,6 +411,8 @@
 
 	}
 
+
+	// TATO FUNKCIA SA SPUSTI PO STLACENI NA TLACIDLO BUTTON V HTML
 	function startSimulation()
 	{
 		var tmp_array = [];
