@@ -28,7 +28,13 @@
 
 
 <body>
-	<p>Zvolte dimension: <input id="dimension" type="number" style='width:50px;' onchange="recreate(this);"> </p>
+	<p>Zvolte dimension: 
+		<input id="cols" type="number" style='width:50px;' onchange="recreate(this);">
+		<input id="rows" type="number" style='width:50px' onchange="recreate(this);">
+	</p>
+
+	<div id='result' style='position:absolute;right:100px;'>
+	</div>
 
 	<div>
 		<table id="matrix"></table>
@@ -42,7 +48,8 @@
 	var velke_cislo = 11*10*9*8*7*6*5*4*3*2 + 1;
 	var m = 8;
 	var iteracia = 0;
-	var dimension = 3;
+	var cols = 3;
+	var rows = 3;
 	var start = []; // TOTO JE ZACIATOCNA POZICIA Z KTOREJ SA ODSTARTUJE, TOTO SA MENI, KED SA HTML MATRIX MENI
 
 
@@ -50,24 +57,39 @@
 	// AK SA V HTML ZMENI DIMENZIA, VYKRESLI SA ZNOVU HTML
 	function recreate(element)
 	{
-		var value = element.value;
+	
 		var matrix = document.getElementById('matrix');
 		
 		start = [];
-		dimension = parseInt(element.value);
+
+		if(element.getAttribute('id') == "cols")
+		{
+				cols = parseInt(element.value); 
+				x_dimension = parseInt(element.value);
+		}
+		else
+		{
+			rows = parseInt(element.value);
+			y_dimension = parseInt(element.value);
+		}
+
+		console.log("cols = "+cols+" rows="+rows);
+
+
+		// VYNULOVANIE TABULKY
 		matrix.innerHTML = "";
 
 		var row = "";
 
-		for(var a=0;a<dimension*dimension;a++)
+		for(var a=0;a<rows*cols;a++)
 			start[a] = a+1;
 
-		for(var a=0;a<value;a++)
+		for(var a=0;a<rows;a++)
 		{
 			row += "<tr>";
-			for(var b=0;b<value;b++)
+			for(var b=0;b<cols;b++)
 			{
-				row += "<td><input class='inputik' val='"+(a*dimension+b+1)+"' type='number' value='"+(a*dimension+b+1)+"' onchange='changeValue(this);' row='"+a+"' column='"+b+"'></td>";
+				row += "<td><input class='inputik' val='"+(a*cols+b+1)+"' type='number' value='"+(a*cols+b+1)+"' onchange='changeValue(this);' row='"+a+"' column='"+b+"'></td>";
 			}
 		}
 		matrix.innerHTML = row;
@@ -87,7 +109,7 @@
 		var column = parseInt(element.getAttribute('column'));
 		var row    = parseInt(element.getAttribute('row'));	
 			
-		start[row*dimension + column] = (v==="m") ? v : parseInt(v);
+		start[row*cols + column] = (v==="m") ? v : parseInt(v);
 		console.log(start);
 
 		return;
@@ -99,9 +121,10 @@
 		this.pos = new Number(pos);			// novy objekt
 		this.sachovnica  = pole.slice(0);	// novy objekt
 		this.heuristika = new Number;		//novy objekt
-		this.predchodca = undefined;	
+		this.predchodca;	
 		this.sucet = 65535;
-		this.toDelete = 1;				// maximalny (nezmyselny) sucet 
+		this.toDelete = 1;
+		this.last_step;				// maximalny (nezmyselny) sucet 
 
 
 		// PRVY VYPOCET HEURISTIKY
@@ -110,31 +133,33 @@
 			var sucet = 0;
 			var cislo,x_prve,y_prve,x_cislo,y_cislo;
 
-			for(var a=0;a<dimension*dimension;a++)
+			for(var a=0;a < rows*cols;a++)
 			{
 				cislo = this.sachovnica[a];
 				
 				// A TOTO ROZHODNE KDE SA MA NACHADZAT TO DANE CISLO
 				if(cislo === "m")
 				{
-					x_cislo = dimension-1;
-					y_cislo = dimension-1;
+					x_cislo = cols-1;
+					y_cislo = rows-1;
 				}
 				else
 				{
-					x_cislo = (cislo-1) % dimension;
-					y_cislo = Math.floor((cislo-1)/dimension);	
+					x_cislo = (cislo-1) % cols;
+					y_cislo = Math.floor((cislo-1)/cols);	
 				}
 
 
 				// ZE KDE SA MOMENTALNE NACHADZA
-				x_prve = a % dimension;
-				y_prve = Math.floor(a/dimension);
+				x_prve = a % cols;
+				y_prve = Math.floor(a/cols);
 		
-
-				sucet += Math.pow(x_prve - x_cislo,2) + Math.pow(y_prve - y_cislo,2); 
+				//if(Math.abs(x_prve - x_cislo) + Math.abs(y_prve - y_cislo))
+					//console.log(a);
+				sucet += Math.abs(x_prve - x_cislo) + Math.abs(y_prve - y_cislo); 
 
 			}
+
 			this.sucet  = sucet;
 		}
 
@@ -143,7 +168,7 @@
 		{
 			var sucet = 0;
 
-			for(a=0;a<dimension*dimension;a++)
+			for(a=0;a<rows*cols;a++)
 			{
 				if(this.sachovnica[a]!=(a+1))
 					sucet++;
@@ -172,8 +197,8 @@
 
 		// pokracuj ak neni undefined a zaroven to neni ten hladany
 		while( hash_table[pozicia] !== undefined && (i = porovnajPolia(hash_table[pozicia % velkost_tabulky],sachovnica)) == 0 ) 
-			{
-				pozicia=(++pozicia + (o++))%velkost_tabulky;
+			{ 
+				pozicia=(++pozicia + (o++)) % velkost_tabulky;
 			}
 
 		// AK TAM UZ JE TAK VRAT NULU (nepridali sme ziadny prvok)
@@ -187,10 +212,11 @@
 		
 
 		// AK PREKROCIME HRANICU PRVKOV
-		if(pocet_prvkov > 100000)
+		if(pocet_prvkov > 80000)
 		{
 			tmp = best_prvok;
-			console.log(best_prvok);
+			console.log(best_prvok.sucet);
+			console.log(best_prvok.sachovnica);
 			var zasobnik = [];
 			var tmp_pocet = 0;
 
@@ -262,7 +288,7 @@
 		/**porovna dve polia, vrati 1 pokial sa rovnaju, 0 pokial sa nerovnaju**/
 		var n = Array1.sachovnica.length;
 		var ok = 1;
-		for(a=0;a<n;a++)
+		for(a=0;a < n;a++)
 		{
 			if(Array1.sachovnica[a] !== Array2.sachovnica[a])
 				return 0;
@@ -273,33 +299,35 @@
 	function getValid(sach)
 	{	
 		/**VRATI POLE STRINGOV PRE VALID TAHY**/
-		var x = sach.pos % dimension; 
-		var y = Math.floor(sach.pos / dimension); 
+		var x = sach.pos % cols; 
+		var y = Math.floor(sach.pos / cols); 
 		var pole = [];
 
-		if(y != 0) 					pole.push("up");
-		if(y != dimension-1)		pole.push("down");
-		if(x != 0)					pole.push("left");
-		if(x != dimension-1) 		pole.push("right");
+		if(y != 0) 			pole.push("up");
+		if(y != rows-1)		pole.push("down");
+		if(x != 0)			pole.push("left");
+		if(x != cols-1) 	pole.push("right");
 
 		return pole;
 	}
 
 	function DOWN(sach)
 	{
-		var tmp = sach.sachovnica[sach.pos+dimension];
+		var tmp = sach.sachovnica[sach.pos+cols];
 		var nova = new sachovnica(sach.sachovnica,sach.pos);
-		nova.sachovnica[nova.pos+dimension] = "m"; 
+		nova.sachovnica[nova.pos + cols] = "m"; 
 		nova.sachovnica[nova.pos] = tmp;
-		nova.pos += dimension;
+		nova.pos += cols;
+		nova.last_step = "UP";
 		return nova;
 	}
 	function UP(sach){
-		var tmp = sach.sachovnica[sach.pos-dimension];
+		var tmp = sach.sachovnica[sach.pos-cols];
 		var nova = new sachovnica(sach.sachovnica,sach.pos);
-		nova.sachovnica[nova.pos-dimension] = "m";
+		nova.sachovnica[nova.pos-cols] = "m";
 		nova.sachovnica[nova.pos] = tmp;
-		nova.pos-=dimension;
+		nova.pos-=cols;
+		nova.last_step = "DOWN";
 		return nova;
 	}
 	function LEFT(sach){
@@ -308,6 +336,7 @@
 		nova.sachovnica[nova.pos-1] = "m";
 		nova.sachovnica[nova.pos] = tmp;
 		nova.pos--;
+		nova.last_step = "RIGHT";
 		return nova;
 	}
 	function RIGHT(sach){
@@ -316,6 +345,7 @@
 		nova.sachovnica[nova.pos+1] = "m";
 		nova.sachovnica[nova.pos] = tmp;
 		nova.pos++;
+		nova.last_step = "LEFT";
 		return nova;
 	}
 	
@@ -333,6 +363,8 @@
 			// INKREMENTOVAT, KOLKO KRAT SA CYKLUS OPAKOVAL, AK PRILIS DLHO TAK SKONCI
 			iteracia++;
 			if(iteracia > 10000000)return 0;
+
+			//console.log('iteracia');
 
 			choices = [];
 			
@@ -354,7 +386,8 @@
 				console.log(tmp);
 				return tmp;
 			}
-
+			//console.log(tmp.sachovnica);
+			//console.log(validmoznosti);
 			// VYTVORI SA POLE "Choices" DO KTOREHO SA ULOZIA NOVE SACHOVNICE KTORE SA VYGENEROVALI PO VALID TAHOCH
 			for(var a = 0;a < validmoznosti.length ; a++)
 			{
@@ -382,7 +415,6 @@
 				else if(i==2) // AK BOLA TABULKA PREMAZAVANA, TAK VYPRAZDNI FRONT, A UMIESTNI NA ZACIATOK NAJLEPSIEHO JEDINCA, KTORY MA NAJNIZSIU HEURISTIKU - BLIZSIE K CIELI
 				{
 					neprehladane = [];
-					console.log(best_prvok);
 					neprehladane.push(best_prvok);
 					best_prvok.sucet++; // pridaj prvku heuristicky sucet + 1 , ak sa bude tento silny prvok opakovat, tak po istom case uz nebude najlepsi a zacne sa prehladavat ina cesta
 					break;//znamena nepridavat dalsie CHOICES
@@ -402,12 +434,20 @@
 		var tmp = sachovnica;
 		console.log('vypisovat idem');
 		console.log(sachovnica);
+		var element = document.getElementById('result');
 
 		while(tmp != undefined)
 		{
-			console.log(tmp.sachovnica);
+			console.log(tmp.sachovnica);	
+			if(tmp.predchodca != undefined)
+				element.innerHTML += "<p>"+tmp.last_step+" -> <span style='float:right'>"+tmp.sachovnica+"</span></p>";
+			else
+				element.innerHTML += "<p>  Zaciatok -> "+tmp.sachovnica+"</p>";
 			tmp = tmp.predchodca;
 		}
+
+		hash_table = [];
+		pocet_prvkov = 0;
 
 	}
 
@@ -415,16 +455,17 @@
 	// TATO FUNKCIA SA SPUSTI PO STLACENI NA TLACIDLO BUTTON V HTML
 	function startSimulation()
 	{
+		document.getElementById('result').innerHTML = "";
 		var tmp_array = [];
-		for(var a=0;a<dimension*dimension - 1;a++)
+		for(var a=0;a < rows*cols-1;a++)
 		{
 			tmp_array.push(a+1);
 		}
 		tmp_array.push("m");
 
-		var destination = new sachovnica(tmp_array,dimension*dimension-1);
+		var destination = new sachovnica(tmp_array,rows*cols-1);
 		var starting = null;
-		for(var a=0;a<dimension*dimension;a++)
+		for(var a=0;a< rows*cols;a++)
 		{
 			if(start[a] === "m")
 			{	
