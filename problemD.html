@@ -3,6 +3,11 @@
 	<title>Problem D</title>
 
 	<style>
+
+		body{
+			background-color:#ccc;
+		}
+
 		.cube{
 			height:50px;
 			width:50px;
@@ -13,10 +18,16 @@
 		.inputik{
 			height:50px;
 			width:50px;
-			background-color:#cec;
+			background-color: rgb(96, 126, 255);
+			color:white;
 			box-shadow: none;
 			border:none;
 			text-align: center;
+		}
+
+		p{
+			line-height: 17px;
+			margin:0px;
 		}
 
 
@@ -28,7 +39,7 @@
 
 
 <body>
-	<p>Zvolte dimension: 
+	<p>Zvolte rozmery cols,rows: 
 		<input id="cols" type="number" style='width:50px;' onchange="recreate(this);">
 		<input id="rows" type="number" style='width:50px' onchange="recreate(this);">
 	</p>
@@ -81,15 +92,19 @@
 
 		var row = "";
 
-		for(var a=0;a<rows*cols;a++)
+		for(var a=0;a<rows*cols-1;a++)
 			start[a] = a+1;
+		start[rows*cols-1] = "m";
 
 		for(var a=0;a<rows;a++)
 		{
 			row += "<tr>";
 			for(var b=0;b<cols;b++)
 			{
-				row += "<td><input class='inputik' val='"+(a*cols+b+1)+"' type='number' value='"+(a*cols+b+1)+"' onchange='changeValue(this);' row='"+a+"' column='"+b+"'></td>";
+				if(a==rows-1 && b==cols-1)
+					row += "<td><input class='inputik' val='m' type='number' value='m' onchange='changeValue(this);' row='"+a+"' column='"+b+"'></td>";
+				else
+					row += "<td><input class='inputik' val='"+(a*cols+b+1)+"' type='number' value='"+(a*cols+b+1)+"' onchange='changeValue(this);' row='"+a+"' column='"+b+"'></td>";
 			}
 		}
 		matrix.innerHTML = row;
@@ -115,11 +130,11 @@
 		return;
 	}
 
-	// OBJEKT SACHOVNICA, OBSAHUJE POLE A POZICIU MEDZERI
-	var sachovnica = function(pole,pos)
+	// OBJEKT puzzle, OBSAHUJE POLE A POZICIU MEDZERI
+	var puzzle = function(pole,pos)
 	{
 		this.pos = new Number(pos);			// novy objekt
-		this.sachovnica  = pole.slice(0);	// novy objekt
+		this.pole  = pole.slice(0);	// novy objekt
 		this.heuristika = new Number;		//novy objekt
 		this.predchodca;	
 		this.sucet = 65535;
@@ -135,7 +150,7 @@
 
 			for(var a=0;a < rows*cols;a++)
 			{
-				cislo = this.sachovnica[a];
+				cislo = this.pole[a];
 				
 				// A TOTO ROZHODNE KDE SA MA NACHADZAT TO DANE CISLO
 				if(cislo === "m")
@@ -170,7 +185,7 @@
 
 			for(a=0;a<rows*cols;a++)
 			{
-				if(this.sachovnica[a]!=(a+1))
+				if(this.pole[a]!=(a+1))
 					sucet++;
 			}
 			this.sucet = sucet;
@@ -188,15 +203,15 @@
 	var hash_table = new Array(velkost_tabulky);
 	var best_prvok = null;
 
-	function insertToTable(sachovnica)
+	function insertToTable(puzzle)
 	{
 		//console.log('inserting to table');
-		pozicia = hash_compute(sachovnica) % velkost_tabulky;
+		pozicia = hash_compute(puzzle) % velkost_tabulky;
 		var i = 0;
 		var o = 1;
 
 		// pokracuj ak neni undefined a zaroven to neni ten hladany
-		while( hash_table[pozicia] !== undefined && (i = porovnajPolia(hash_table[pozicia % velkost_tabulky],sachovnica)) == 0 ) 
+		while( hash_table[pozicia] !== undefined && (i = porovnajPolia(hash_table[pozicia % velkost_tabulky],puzzle)) == 0 ) 
 			{ 
 				pozicia=(++pozicia + (o++)) % velkost_tabulky;
 			}
@@ -205,7 +220,7 @@
 		if(i)	
 			return 0;	
 		else
-			hash_table[pozicia] = sachovnica; // ak tam nie je, pridaj do hash tabulky
+			hash_table[pozicia] = puzzle; // ak tam nie je, pridaj do hash tabulky
 
 		//inkrementuj pocet prvkov v tabulke
 		pocet_prvkov++;
@@ -216,7 +231,7 @@
 		{
 			tmp = best_prvok;
 			console.log(best_prvok.sucet);
-			console.log(best_prvok.sachovnica);
+			console.log(best_prvok.pole);
 			var zasobnik = [];
 			var tmp_pocet = 0;
 
@@ -268,17 +283,17 @@
 		return 1; // ak sa to tam uspesne vlozilo a este tam dany prvok nebol tak vrat 1
 	}
 	
-	function hash_compute(sachovnica)
+	function hash_compute(puzzle)
 	{
 		/**vypočíta sa HASH**/
-		var n = sachovnica.sachovnica.length;
+		var n = puzzle.pole.length;
 		var sucet = 0;
 		for(var a = 0;a<n;a++)
 		{
-			if(sachovnica.sachovnica[a] == "m")
+			if(puzzle.pole[a] == "m")
 				sucet += 100*(a+1)*(a+1)*(a+1);
 			else
-				sucet += (a+1)*(a+1)*(a+1)*(a+1)*(sachovnica.sachovnica[a]+1)*(1+sachovnica.sachovnica[a])*(sachovnica.sachovnica[a]);
+				sucet += (a+1)*(a+1)*(a+1)*(a+1)*(puzzle.pole[a]+1)*(1+puzzle.pole[a])*(puzzle.pole[a]);
 		}
 		return sucet;
 	}
@@ -286,11 +301,11 @@
 	function porovnajPolia(Array1,Array2)
 	{
 		/**porovna dve polia, vrati 1 pokial sa rovnaju, 0 pokial sa nerovnaju**/
-		var n = Array1.sachovnica.length;
+		var n = Array1.pole.length;
 		var ok = 1;
 		for(a=0;a < n;a++)
 		{
-			if(Array1.sachovnica[a] !== Array2.sachovnica[a])
+			if(Array1.pole[a] !== Array2.pole[a])
 				return 0;
 		}
 		return 1;
@@ -313,37 +328,37 @@
 
 	function DOWN(sach)
 	{
-		var tmp = sach.sachovnica[sach.pos+cols];
-		var nova = new sachovnica(sach.sachovnica,sach.pos);
-		nova.sachovnica[nova.pos + cols] = "m"; 
-		nova.sachovnica[nova.pos] = tmp;
+		var tmp = sach.pole[sach.pos+cols];
+		var nova = new puzzle(sach.pole,sach.pos);
+		nova.pole[nova.pos + cols] = "m"; 
+		nova.pole[nova.pos] = tmp;
 		nova.pos += cols;
 		nova.last_step = "UP";
 		return nova;
 	}
 	function UP(sach){
-		var tmp = sach.sachovnica[sach.pos-cols];
-		var nova = new sachovnica(sach.sachovnica,sach.pos);
-		nova.sachovnica[nova.pos-cols] = "m";
-		nova.sachovnica[nova.pos] = tmp;
+		var tmp = sach.pole[sach.pos-cols];
+		var nova = new puzzle(sach.pole,sach.pos);
+		nova.pole[nova.pos-cols] = "m";
+		nova.pole[nova.pos] = tmp;
 		nova.pos-=cols;
 		nova.last_step = "DOWN";
 		return nova;
 	}
 	function LEFT(sach){
-		var tmp = sach.sachovnica[sach.pos-1];
-		var nova = new sachovnica(sach.sachovnica,sach.pos);
-		nova.sachovnica[nova.pos-1] = "m";
-		nova.sachovnica[nova.pos] = tmp;
+		var tmp = sach.pole[sach.pos-1];
+		var nova = new puzzle(sach.pole,sach.pos);
+		nova.pole[nova.pos-1] = "m";
+		nova.pole[nova.pos] = tmp;
 		nova.pos--;
 		nova.last_step = "RIGHT";
 		return nova;
 	}
 	function RIGHT(sach){
-		var tmp = sach.sachovnica[sach.pos+1]; 
-		var nova = new sachovnica(sach.sachovnica,sach.pos);
-		nova.sachovnica[nova.pos+1] = "m";
-		nova.sachovnica[nova.pos] = tmp;
+		var tmp = sach.pole[sach.pos+1]; 
+		var nova = new puzzle(sach.pole,sach.pos);
+		nova.pole[nova.pos+1] = "m";
+		nova.pole[nova.pos] = tmp;
 		nova.pos++;
 		nova.last_step = "LEFT";
 		return nova;
@@ -362,12 +377,15 @@
 		{
 			// INKREMENTOVAT, KOLKO KRAT SA CYKLUS OPAKOVAL, AK PRILIS DLHO TAK SKONCI
 			iteracia++;
-			if(iteracia > 10000000)return 0;
 
-			//console.log('iteracia');
+			if(iteracia > 500000) //ak viac ako pol melona
+				{
+					window.alert("simulacia prekrocila iteracny limit...");
+					return 0;
+				}
 
 			choices = [];
-			
+	
 			// VYBER ZO ZASOBNIKA
 			tmp = neprehladane.shift();
 
@@ -379,15 +397,14 @@
 			validmoznosti = getValid(tmp); 
 
 			// AK SME VYBRALI Z NEPREHLADANYCH STAVOV NAS VYSLEDNY TAH KTORY CHCEME NAJST, TAK SUPER, NASLI SME RIESENIE
-			if(porovnajPolia(destination,tmp) == 1)
+			if( porovnajPolia(destination,tmp) )
 			{
 				console.log('JUPII');
 				console.log('pocet iteracii = '+iteracia);
 				console.log(tmp);
 				return tmp;
 			}
-			//console.log(tmp.sachovnica);
-			//console.log(validmoznosti);
+
 			// VYTVORI SA POLE "Choices" DO KTOREHO SA ULOZIA NOVE SACHOVNICE KTORE SA VYGENEROVALI PO VALID TAHOCH
 			for(var a = 0;a < validmoznosti.length ; a++)
 			{
@@ -396,7 +413,6 @@
 				else if( validmoznosti[a] == "right")	choices.push(RIGHT(tmp));
 				else if( validmoznosti[a] == "left" )	choices.push(LEFT(tmp));
 			}
-
 
 			// PRE KAZDU NOVU VYGENEROVANU SACHOVNICU SA ZISTI, CI UZ SME JU NAHODOU NEOBJAVILI, AK SME JU OBJAVILI TAK ULOZIT DO NEPREHLADANYCH STAVOV
 			for(var b = 0; b < choices.length ;b++)
@@ -429,20 +445,20 @@
 
 
 	// JEDNODUCHE NAVRATENIE KU RODICOM A VYPISAT ICH
-	function vypisPredchodcov(sachovnica)
+	function vypisPredchodcov(puzzle)
 	{
-		var tmp = sachovnica;
+		var tmp = puzzle;
 		console.log('vypisovat idem');
-		console.log(sachovnica);
+		console.log(puzzle);
 		var element = document.getElementById('result');
 
 		while(tmp != undefined)
 		{
-			console.log(tmp.sachovnica);	
+			console.log(tmp.pole);	
 			if(tmp.predchodca != undefined)
-				element.innerHTML += "<p>"+tmp.last_step+" -> <span style='float:right'>"+tmp.sachovnica+"</span></p>";
+				element.innerHTML += "<p>"+tmp.last_step+" -> <span style='float:right'>"+tmp.pole+"</span></p>";
 			else
-				element.innerHTML += "<p>  Zaciatok -> "+tmp.sachovnica+"</p>";
+				element.innerHTML += "<p>  Zaciatok -> "+tmp.pole+"</p>";
 			tmp = tmp.predchodca;
 		}
 
@@ -463,13 +479,13 @@
 		}
 		tmp_array.push("m");
 
-		var destination = new sachovnica(tmp_array,rows*cols-1);
+		var destination = new puzzle(tmp_array,rows*cols-1);
 		var starting = null;
 		for(var a=0;a< rows*cols;a++)
 		{
 			if(start[a] === "m")
 			{	
-				starting = new sachovnica(start,a);
+				starting = new puzzle(start,a);
 				console.log('naslo sa m na pozicii '+a);
 				break;
 			}
